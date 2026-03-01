@@ -876,6 +876,14 @@ RunService.RenderStepped:Connect(function()
 		lastYogaTime = now
 		yogaFired = true
 		triggerYogaMat()
+
+		-- Failsafe: if no NPC is targeted within 5 seconds, fire yoga again
+		task.delay(5, function()
+			if yogaFired and not selectedNPC then
+				yogaFired = false
+				lastYogaTime = 0
+			end
+		end)
 	end
 
 	-- SHA detection — spawn a safe part to stand on, wait 5s, resume
