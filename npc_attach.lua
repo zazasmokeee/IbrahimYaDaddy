@@ -19,6 +19,7 @@ local targetFilter     = ""
 local yogaActive       = false
 local lastYogaTime     = 0
 local yogaFired        = false
+local noEnemiesTime    = nil   -- tick() when npcList first became empty
 local YOGA_INTERVAL    = 3
 
 local LOW_HEALTH_THRESHOLD   = 0.35
@@ -768,6 +769,10 @@ local function toggleAutoRaid()
 		autoRaidButton.Text = "⚡  AUTO RAID: ON  [ALT]"
 		autoStroke.Color = Color3.fromRGB(220, 180, 0)
 		autoRaidButton.BackgroundColor3 = Color3.fromRGB(22, 18, 0)
+		-- Fire spawn remote when auto raid starts
+		pcall(function()
+			game:GetService("ReplicatedStorage").requests.character.spawn:FireServer()
+		end)
 	else
 		autoRaidButton.Text = "⚡  AUTO RAID: OFF  [ALT]"
 		autoStroke.Color = Color3.fromRGB(80, 80, 100)
@@ -775,6 +780,7 @@ local function toggleAutoRaid()
 		detachPlayer()
 		fireBlock(false)
 		shaEvasionActive = false
+		noEnemiesTime = nil
 		selectedNPC = nil
 		dropdown.Text = "⬡  Select NPC  [N]"
 		npcHealthFill.Size = UDim2.new(0, 0, 1, 0)
@@ -835,6 +841,7 @@ player.CharacterAdded:Connect(function(character)
 	shaHiding = false
 	autoRaid = false
 	yogaFired = false
+	noEnemiesTime = nil
 	selectedNPC = nil
 
 	-- Keep autoRaid state but pause everything for 3 seconds
@@ -955,6 +962,20 @@ RunService.RenderStepped:Connect(function()
 
 	if autoRaid then
 		refreshNPCs()
+
+		-- Track how long npcList has been empty, fire retryraid after 12s
+		if #npcList == 0 then
+			if not noEnemiesTime then
+				noEnemiesTime = now
+			elseif now - noEnemiesTime >= 12 then
+				noEnemiesTime = nil  -- reset so it doesn't spam
+				pcall(function()
+					game:GetService("ReplicatedStorage").requests.character.retryraid:FireServer()
+				end)
+			end
+		else
+			noEnemiesTime = nil  -- enemies exist, reset timer
+		end
 		if selectedNPC and (isNearHostage(selectedNPC) or not matchesFilter(selectedNPC)) then
 			selectedNPC = nil
 			dropdown.Text = "⬡  Select NPC  [N]"
